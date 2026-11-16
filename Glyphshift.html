@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glyphshift</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#ffffff;--fg:#111111;--muted:#6b6b6b;--line:#e4e4e4;--field:#fafafa;--inv:#ffffff;
+  color-scheme:light;box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111111;--fg:#f2f2f2;--muted:#8f8f8f;--line:#2b2b2b;--field:#171717;--inv:#111111;color-scheme:dark;}}
+:root[data-theme="dark"]{--bg:#111111;--fg:#f2f2f2;--muted:#8f8f8f;--line:#2b2b2b;--field:#171717;--inv:#111111;color-scheme:dark}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font:15px/1.55 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:640px;margin:0 auto;padding:56px 20px 64px}
+h1{font-size:1.5rem;font-weight:600;letter-spacing:-.02em;margin:0 0 4px}
+.lede{margin:0 0 36px;color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px}
+label,.label{font-weight:500;font-size:.9rem}
+.count{color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
+textarea{display:block;width:100%;min-height:120px;resize:vertical;background:var(--field);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+  padding:12px;font:inherit;line-height:1.7;outline:none}
+textarea:focus-visible{border-color:var(--fg)}
+.section{margin-top:28px}
+.methods{display:grid;grid-template-columns:1fr 1fr;gap:2px 24px;margin:8px 0 0;padding:0;list-style:none}
+@media (max-width:480px){.methods{grid-template-columns:1fr}}
+.methods label{display:flex;align-items:center;gap:10px;padding:7px 0;font-weight:400;cursor:pointer}
+input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--fg)}
+input[type=checkbox]:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+button{font:inherit;cursor:pointer}
+.pill{background:none;border:1px solid var(--line);color:var(--fg);padding:5px 12px;border-radius:999px;font-size:.85rem}
+.pill:hover{border-color:var(--fg)}
+.strength{display:flex;align-items:center;gap:12px;margin-top:20px}
+.strength input{flex:1;max-width:220px;accent-color:var(--fg)}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{background:var(--fg);color:var(--inv);border:1px solid var(--fg);border-radius:8px;padding:9px 16px;font-weight:500}
+.btn:hover{opacity:.88}
+.btn.quiet{background:none;color:var(--fg);border-color:var(--line)}
+.btn.quiet:hover{border-color:var(--fg);opacity:1}
+button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.note{margin:12px 0 0;color:var(--muted);font-size:.85rem;min-height:1.3em}
+hr{border:0;border-top:1px solid var(--line);margin:36px 0 0}
+.fine{margin:16px 0 0;color:var(--muted);font-size:.8rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Glyphshift</h1>
+  <p class="lede">Restyle text with Unicode effects. Everything runs in your browser.</p>
+
+  <div class="row"><label for="in">Text</label><span class="count" id="inCount"></span></div>
+  <textarea id="in" spellcheck="false" placeholder="Type or paste text">Hello world, this is Glyphshift.</textarea>
+
+  <div class="section">
+    <div class="label">Methods</div>
+    <ul class="methods" id="methods"></ul>
+    <div class="strength">
+      <label for="amt" style="font-weight:400;color:var(--muted)">Strength</label>
+      <input type="range" id="amt" min="1" max="12" value="4">
+      <span class="count" id="amtVal"></span>
+    </div>
+    <div class="label" style="margin-top:24px">Presets</div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="section">
+    <div class="row"><label for="out">Result</label><span class="count" id="outCount"></span></div>
+    <textarea id="out" readonly></textarea>
+    <div class="actions">
+      <button class="btn" id="copy" type="button">Copy</button>
+      <button class="btn quiet" id="swap" type="button">Use as input</button>
+      <button class="btn quiet" id="reset" type="button">Clear methods</button>
+    </div>
+    <p class="note" id="note" aria-live="polite"></p>
+  </div>
+
+  <hr>
+  <p class="fine">Some apps strip or restyle Unicode effects, and hidden characters can confuse screen readers and search.</p>
+</main>
+
+<script>
+(function(){
+  var rnd=function(n){return Math.floor(Math.random()*n)};
+  var chars=function(s){return Array.from(s)};
+  var $=function(id){return document.getElementById(id)};
+  var amt=function(){return +$("amt").value};
+
+  var UP_FROM="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,'?!()[]_&;";
+  var UP_TO=["\u0250","q","\u0254","p","\u01DD","\u025F","\u0183","\u0265","\u1D09","\u027E","\u029E","l","\u026F","u","o","d","b","\u0279","s","\u0287","n","\u028C","\u028D","x","\u028E","z",
+    "\u2200","q","\u0186","p","\u018E","\u2132","\u05E4","H","I","\u017F","\u029E","\u02E5","W","N","O","\u0500","Q","\u0279","S","\u2534","\u2229","\u039B","M","X","\u2144","Z",
+    "0","\u0196","\u1105","\u0190","\u3123","\u03DB","9","\u3125","8","6","\u02D9","'",",","\u00BF","\u00A1",")","(","]","[","\u203E","\u214B","\u061B"];
+  var UP={};chars(UP_FROM).forEach(function(c,i){UP[c]=UP_TO[i]});
+  var HG={a:"\u0430",c:"\u0441",e:"\u0435",o:"\u043E",p:"\u0440",x:"\u0445",y:"\u0443",i:"\u0456",s:"\u0455",j:"\u0458",h:"\u04BB",
+    A:"\u0410",B:"\u0412",C:"\u0421",E:"\u0415",H:"\u041D",I:"\u0406",K:"\u041A",M:"\u041C",O:"\u041E",P:"\u0420",T:"\u0422",X:"\u0425"};
+  var INVIS=["\u200B","\u200C","\u200D","\u2060"];
+  function marks(n,from,to){var r="";for(var i=0;i<n;i++)r+=String.fromCharCode(from+rnd(to-from+1));return r}
+  function map(s,f){return chars(s).map(f).join("")}
+
+  var M=[
+    {id:"b64",name:"Base64 encode",fn:function(s){try{return btoa(unescape(encodeURIComponent(s)))}catch(e){return s}}},
+    {id:"homo",name:"Homoglyph swap",fn:function(s){return map(s,function(c){return HG[c]||c})}},
+    {id:"full",name:"Fullwidth",fn:function(s){return map(s,function(c){var k=c.charCodeAt(0);return k===32?"\u3000":(k>32&&k<127?String.fromCharCode(k+0xFEE0):c)})}},
+    {id:"bubble",name:"Bubble letters",fn:function(s){return map(s,function(c){var k=c.charCodeAt(0);
+      if(k>=65&&k<=90)return String.fromCharCode(0x24B6+k-65);if(k>=97&&k<=122)return String.fromCharCode(0x24D0+k-97);
+      if(k>=49&&k<=57)return String.fromCharCode(0x2460+k-49);if(k===48)return "\u24EA";return c})}},
+    {id:"flip",name:"Upside down",fn:function(s){return chars(s).map(function(c){return UP[c]||c}).reverse().join("")}},
+    {id:"case",name:"Random case",fn:function(s){return map(s,function(c){return Math.random()<.5?c.toUpperCase():c.toLowerCase()})}},
+    {id:"zalgo",name:"Zalgo",fn:function(s){return map(s,function(c){return /\s/.test(c)?c:c+marks(amt()+rnd(amt()),0x0300,0x036F)})}},
+    {id:"flood",name:"Diacritic flood",fn:function(s){return map(s,function(c){return /\s/.test(c)?c:c+marks(amt()*2,0x0300,0x0314)})}},
+    {id:"invis",name:"Invisible characters",fn:function(s){return map(s,function(c){return c+INVIS[rnd(INVIS.length)]})}},
+    {id:"lrm",name:"Left-to-right marks",fn:function(s){return chars(s).join("\u200E")+"\u200E"}},
+    {id:"rtl",name:"RTL override",fn:function(s){return "\u202E"+chars(s).reverse().join("")}}
+  ];
+  var PRESETS=[
+    {name:"Stealth",ids:["homo","invis"]},
+    {name:"Glitch",ids:["case","zalgo"]},
+    {name:"Gentle",ids:["homo","lrm"]},
+    {name:"Wide",ids:["full"]}
+  ];
+
+  var on={},boxes={};
+  M.forEach(function(m){
+    var li=document.createElement("li"),lb=document.createElement("label"),cb=document.createElement("input");
+    cb.type="checkbox";cb.onchange=function(){on[m.id]=cb.checked;sync()};
+    boxes[m.id]=cb;lb.appendChild(cb);lb.appendChild(document.createTextNode(m.name));li.appendChild(lb);$("methods").appendChild(li);
+  });
+  PRESETS.forEach(function(p){
+    var b=document.createElement("button");b.type="button";b.className="pill";b.textContent=p.name;
+    b.onclick=function(){on={};p.ids.forEach(function(i){on[i]=true});sync()};
+    $("presets").appendChild(b);
+  });
+
+  function sync(){
+    var s=$("in").value;
+    M.forEach(function(m){boxes[m.id].checked=!!on[m.id];if(on[m.id])s=m.fn(s)});
+    $("out").value=s;
+    $("inCount").textContent=chars($("in").value).length+" characters";
+    $("outCount").textContent=chars(s).length+" characters";
+    $("amtVal").textContent=amt();
+    var hidden=chars(s).filter(function(c){return /[\u200B-\u200F\u2060\u202A-\u202E]/.test(c)}).length;
+    $("note").textContent=hidden?"Includes "+hidden+" invisible control characters.":"";
+  }
+
+  $("in").addEventListener("input",sync);
+  $("amt").addEventListener("input",sync);
+  $("reset").onclick=function(){on={};sync()};
+  $("swap").onclick=function(){$("in").value=$("out").value;on={};sync()};
+  $("copy").onclick=function(){
+    var v=$("out").value,btn=$("copy");
+    var done=function(){btn.textContent="Copied";setTimeout(function(){btn.textContent="Copy"},1400)};
+    var fallback=function(){var o=$("out");o.removeAttribute("readonly");o.select();try{document.execCommand("copy");done()}catch(e){}o.setAttribute("readonly","")};
+    try{navigator.clipboard.writeText(v).then(done,fallback)}catch(e){fallback()}
+  };
+  sync();
+})();
+</script>
+</body>
+</html>
